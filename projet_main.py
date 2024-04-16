@@ -28,6 +28,36 @@ def format_infinity(x):
     return x
 
 
+class Node:
+    """Used to represent a Node which is used for Graphs."""
+
+    global_nodes = {}
+
+    def __init__(self, tier: int = 0, name: str = None):
+        self.id = id(self)
+        self.tier = tier
+        self.name = self.set_name(name, self.id)
+        self.neighbors = []
+        self.global_nodes[self.id] = self.name
+        self.routing_table = {}
+
+    def __repr__(self) -> str:
+        return (f'{self.infos()}')
+
+    def __str__(self) -> str:
+        return (f"{self.name}")
+
+    def set_name(self, name, id):
+        if (self.global_nodes).get(name, None):
+            return (name + str(id))
+        else:
+            return (name)
+
+    def infos(self=None):
+        """Used to get all attributes of an object"""
+        return (vars(self))
+
+
 class Graph:
     """
     This class represent a non-oriented graph, made of Nodes.
@@ -41,17 +71,17 @@ class Graph:
         self.name = name if name else f"Graph_{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}"
 
         if kwargs.get("no_generation", False):
+            print("No generation...")
             self.nodes = [Node() for _ in range(size)]
-            self.matrix = self.generate_links(size, rules, no_generation=True)
+            self.matrix = self._generate_links(size, rules, no_generation=True)
         else:
-            self.nodes = self.__generate_nodes(rules)
-            self.matrix = self.__generate_links(size, rules)
-            """for node_index in range(len(self.nodes)):
-                self.nodes[node_index].neighbors = self.get_neighbors(node_index)"""
+            self.nodes = self._generate_nodes(rules)
+            self.matrix = self._generate_links(size, rules)
 
-            self.translation_table = {self.nodes[index].name: index for index in range(len(self.nodes))}
+    def __str__(self) -> str:
+        return ('\n'.join(str(node.infos()) for node in self.nodes))
 
-    def __generate_nodes(self, rules: tuple):
+    def _generate_nodes(self, rules: tuple):
         """Creates the list of Nodes and their distribution"""
         temp = []
         # Backbone
@@ -65,7 +95,7 @@ class Graph:
             temp += [Node(3, f"R{iteration}")]
         return (temp)
 
-    def __generate_links(self, size, rules, **kwargs):
+    def _generate_links(self, size, rules, **kwargs):
         """The matrix follow these rules: A link exists if it's >1, a line show a Node's neighbors, a column show what a Node is connected to, the value represents the speed of the link"""
         temp = array([[0 if row != column else float("inf") for row in range(size)] for column in range(size)])
         if kwargs.get("no_generation", False):
@@ -74,20 +104,28 @@ class Graph:
         # Tier I
         for node_A in range(0, rules[0]):
             for node_B in range(0, rules[0]):
-                if (self.get_link(temp, node_A, node_B) == 0) and (random_event(10)):
+                if (self.get_link(temp, node_A, node_B) == 0) and (random_event(75)):
                     link_value = randint(5, 10)
                     self.set_link(temp, node_A, node_B, link_value)
 
         # Tier II
-        for node_A in range(rules[0] + 1, rules[1]):    # WIP
-            candidates = [node_index for node_index in range(rules[0] + 1, rules[1])]
-            candidates.remove(node_A)
-            selection = sample(candidates, randint(2, 3))
-            print(f"{self.nodes[node_A].name}:{selection}")
+        for node_A in range(rules[0], rules[0] + rules[1]):    # WIP
+            # Part 2
+            candidates = self.filter_nodes(output="index", tier=2, neighbors_limit=(3, "<"), exclude=node_A)
+
+            if len(candidates) > 3:  # Sample doesn't work if the population is less than the picked amount
+                selection = sample(list(candidates), randint(2, 3))
+            else:
+                selection = candidates
+            print(candidates)
+            print()
+            print(f"{self.get_invert_id(node_A)}:{selection}")
             for node_B in selection:
                 if (self.get_link(temp, node_A, node_B) == 0):
                     link_value = randint(10, 20)
                     self.set_link(temp, node_A, node_B, link_value)
+                    self.nodes[node_A].neighbors += [node_B]
+                    self.nodes[node_B].neighbors += [node_A]
 
         return (temp)
 
@@ -124,36 +162,92 @@ class Graph:
         temp_dataframe.columns = [node.name for node in self.nodes]
         temp_dataframe.to_excel(f"spreadsheets/{self.name}_spreadsheet.xlsx", index=True)
 
-    def get_neighbors(self, node_index):
-        """Returns the neighbors of a Node, identified by it's index."""
-        temp = []
-        for column in range(len(self.matrix)):
-            if (0 < self.matrix[node_index, column] < float("inf")):
-                temp += [self.nodes[column].name]
-        for row in range(len(self.matrix)):
-            if (0 < self.matrix[row, node_index] < float("inf")):
-                temp += [self.nodes[row].name]
+    def get_invert_id(self, node_id: int | str):
+        """
+        Get the identifier if you provide an index or a name.
+        \nindex -> name
+        \nname -> index
+        """
 
-        return (temp)
-
-    def __str__(self) -> str:
-        return ('\n'.join(str(node.infos()) for node in self.nodes))
-
-    def get_node(self, index: int):
-        return (self.nodes[index - 1])
-
-    def get_node_index(self, node: str | list):
-        if isinstance(node, list):
-            return [self.translation_table.get(node_iter, 0) for node_iter in node]
-        elif isinstance(node, str):
-            return (self.translation_table.get(node, 0))
+        if not isinstance(node_id, int | str):
+            raise TypeError(f"The provided node type({type(node_id)}) is incorrect")
+        elif isinstance(node_id, int):
+            return (self.nodes[node_id].name)
         else:
-            print(f"The node's type provided is invalid ({type(node)})")
-            return (None)
+            for index, node in enumerate(self.nodes):
+                if node.name == node_id:
+                    return (index)
+            raise NameError(f"The provided Node name({node_id}) does not exist")
+
+    def get_neighbors(self, matrix, node: any, **kwargs):
+        """
+        Returns the neighbors of a Node, indicated by it's index
+        \nOptional Arguments:
+        \n\toutput: str {index, name, amount} -> The output format
+        """
+        res = []
+        for index in range(len(self.nodes)):
+            if self.get_link(matrix, node if isinstance(node, int) else self.get_invert_id(node), index) not in [inf, 0]:
+                res += [self.nodes[index].name if kwargs.get("output") == "name" else index]
+
+        return (len(res) if kwargs.get("output") == "amount" else res)
+
+    def filter_nodes(self, **kwargs) -> list | Node:
+        """
+        Return all nodes based on the provided filters. If the provided filter is wrong, it will not know.
+        \nOptional Arguments:
+        \n\ttier: int -> Filter based on the tier
+        \n\tname: str -> Filter based on the name
+        \n\tneighbors_limit: tuple (int, mode: str {==, <, >, <=, >=}) -> Filter based on the amount of neighbors and the mode
+        \n\toutput: str {None, index, name, amount} -> Returns a list of indexes or names
+        \n\texclude: [int] -> Will not include the specified nodes
+        """
+
+        excluded = [kwargs.get("exclude", [])] if isinstance(kwargs.get("exclude", []), int) else kwargs.get("exclude", [])
+        res = [node for index, node in enumerate(self.nodes) if index not in excluded]
+
+        if tier := kwargs.get("tier"):
+            res = [node for node in res if node.tier == tier]
+        if name := kwargs.get("name"):
+            res = [node for node in res if node.name == name]
+        if neighbors_limit := kwargs.get("neighbors_limit"):
+            match neighbors_limit[1]:
+                case "==":
+                    res = [node for node in res if len(node.neighbors) == neighbors_limit[0]]
+                case "<":
+                    print(8945619841654658441654)
+                    temp = []
+                    for node in res:
+                        print(node, len(node.neighbors), node.neighbors, neighbors_limit[0], len(node.neighbors) < neighbors_limit[0])
+                        if len(node.neighbors) < neighbors_limit[0]:
+                            temp += [node]
+                    res = temp
+                    #res = [node for node in res if len(node.neighbors) < neighbors_limit[0]]
+                case "<=":
+                    res = [node for node in res if len(node.neighbors) <= neighbors_limit[0]]
+                case ">":
+                    res = [node for node in res if len(node.neighbors) > neighbors_limit[0]]
+                case ">=":
+                    res = [node for node in res if len(node.neighbors) >= neighbors_limit[0]]
+
+        if (kwargs.get("output", False) == "name"):
+            return [node.name for node in res]
+        if (kwargs.get("output", False) == "amount"):
+            return (len(res))
+        if (kwargs.get("output", False) in [False, "index"]):
+            return (list(map(self.get_invert_id, [node.name for node in res])))
+
+    def get_node(self, node: int | str):
+        if not isinstance(node, int | str):
+            raise TypeError(f"The provided node type({type(node)}) is incorrect")
+        elif isinstance(node, int):
+            return (self.nodes[node])
+        else:
+            return (self.nodes[self.get_invert_id(node)])
 
     def get_link(self, matrix, node1: any, node2: any):
         if isinstance(node1, str) and isinstance(node2, str):  # If given by name
-            a, b = self.translation_table.get(node1, 0), self.translation_table.get(node2, 0)
+            a, b = self.get_invert_id(node1), self.get_invert_id(node2)
             return (matrix[(a, b) if a < b else (b, a)])
         elif isinstance(node1, int) and isinstance(node2, int):  # If given by index
             return (matrix[(node1, node2) if node1 < node2 else (node2, node1)])
@@ -163,7 +257,7 @@ class Graph:
 
     def set_link(self, matrix, node1: any, node2: any, value: float):
         if isinstance(node1, str) and isinstance(node2, str):  # If given by name
-            a, b = self.translation_table.get(node1, 0), self.translation_table.get(node2, 0)
+            a, b = self.get_invert_id(node1), self.get_invert_id(node2)
             if a != b:
                 matrix[(a, b) if a < b else (b, a)] = value
                 print(f"\033[92mCreated link ({node1}, {node2})={value}\033[0m")
@@ -176,37 +270,11 @@ class Graph:
             return (None)
 
 
-class Node:
-    """Used to represent a Node which is used for Graphs."""
-
-    global_nodes = {}
-
-    def __init__(self, tier: int = 0, name: str = None):
-        self.id = id(self)
-        self.tier = tier
-        self.name = self.set_name(name, self.id)
-        self.neighbors = []
-        self.global_nodes[self.id] = self.name
-        self.routing_table = {}
-
-    def __repr__(self) -> str:
-        return (f'{self.infos()}')
-
-    def __str__(self) -> str:
-        return (f"{self.name}")
-
-    def set_name(self, name, id):
-        if (self.global_nodes).get(name, None):
-            return (name + str(id))
-        else:
-            return (name)
-
-    def infos(self=None):
-        """Used to get all attributes of an object"""
-        return (vars(self))
-
-
 G = Graph(no_generation=False)
-G.display_links((10, 20), (1, 3))
+#G.display_links((10, 20), (0, 1))
+for node_index in G.filter_nodes(output="index", tier=2, neighbors=(3, ">=")):
+    print(G.get_invert_id(node_index), G.nodes[node_index].neighbors)
+
+print(G.filter_nodes(tier=2, neighbors_limit=(3, "<")))
 if input("Would you like to export? Y/N:") == "Y":
     G.export()
