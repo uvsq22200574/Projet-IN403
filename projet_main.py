@@ -154,7 +154,8 @@ class Graph:
             print(dataframe.map(format_infinity))
 
     def export(self):
-        """Will export the current Graph's matrix in an excel spreadsheet. The file is in the folder "spreadsheets"
+        """
+        Will export the current Graph's matrix in an excel spreadsheet. The file is in the folder "spreadsheets"
         """
         temp_dataframe = DataFrame(self.matrix).map(format_infinity)
         temp_dataframe.index = [node.name for node in self.nodes]
