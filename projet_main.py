@@ -1,6 +1,6 @@
 from random import choice, randint, random, sample
 from numpy import array, set_printoptions, triu, inf
-from pandas import DataFrame, set_option
+from pandas import DataFrame, set_option, ExcelWriter
 from datetime import datetime
 from os import path, chdir
 
@@ -69,6 +69,7 @@ class Graph:
 
     def __init__(self, name: str = None, size=100, rules=(10, 20, 70), **kwargs):
         self.name = name if name else f"Graph_{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}"
+        self.distribution = rules
 
         if kwargs.get("no_generation", False):
             print("No generation...")
@@ -111,21 +112,19 @@ class Graph:
         # Tier II
         for node_A in range(rules[0], rules[0] + rules[1]):    # WIP
             # Part 2
-            candidates = self.filter_nodes(output="index", tier=2, neighbors_limit=(3, "<"), exclude=node_A)
+            if len(self.nodes[node_A].neighbors) < 2:
+                candidates = self.filter_nodes(output="index", tier=2, neighbors_limit=(3, "<"), exclude=node_A)
 
-            if len(candidates) > 3:  # Sample doesn't work if the population is less than the picked amount
-                selection = sample(list(candidates), randint(2, 3))
-            else:
-                selection = candidates
-            print(candidates)
-            print()
-            print(f"{self.get_invert_id(node_A)}:{selection}")
-            for node_B in selection:
-                if (self.get_link(temp, node_A, node_B) == 0):
-                    link_value = randint(10, 20)
-                    self.set_link(temp, node_A, node_B, link_value)
-                    self.nodes[node_A].neighbors += [node_B]
-                    self.nodes[node_B].neighbors += [node_A]
+                if len(candidates) > 3:  # Sample doesn't work if the population is less than the picked amount
+                    selection = sample(list(candidates), randint(2, 3))
+                else:
+                    selection = candidates
+                for node_B in selection:
+                    if (self.get_link(temp, node_A, node_B) == 0):
+                        link_value = randint(10, 20)
+                        self.set_link(temp, node_A, node_B, link_value)
+                        self.nodes[node_A].neighbors += [node_B]
+                        self.nodes[node_B].neighbors += [node_A]
 
         return (temp)
 
@@ -160,7 +159,32 @@ class Graph:
         temp_dataframe = DataFrame(self.matrix).map(format_infinity)
         temp_dataframe.index = [node.name for node in self.nodes]
         temp_dataframe.columns = [node.name for node in self.nodes]
-        temp_dataframe.to_excel(f"spreadsheets/{self.name}_spreadsheet.xlsx", index=True)
+
+        with ExcelWriter(f'spreadsheets/{self.name}_spreadsheet.xlsx', engine='xlsxwriter') as writer:
+            temp_dataframe.to_excel(writer, sheet_name=self.name, startrow=0, startcol=0, index=True)
+
+            # Access the workbook and worksheet objects
+            workbook = writer.book
+            worksheet = writer.sheets[self.name]
+
+            # Create a cell format with centered alignment
+            centered_format = workbook.add_format({'align': 'center'})
+            backbone_format = workbook.add_format({'align': 'center', 'bg_color': '#963634'})
+            transit_format = workbook.add_format({'align': 'center', 'bg_color': '#007BA7'})
+            ignore_format = workbook.add_format({'align': 'center', 'bg_color': '#000000'})
+
+            # Apply the centered format to all cells
+            for idx, col in enumerate(temp_dataframe.columns):
+                worksheet.set_column(idx, idx, 4, centered_format)
+                if idx == self.distribution[0]:
+                    worksheet.set_row(idx, None, backbone_format)
+                    worksheet.set_column(idx, idx, 4, backbone_format)
+                if idx == sum(self.distribution[:-1]):
+                    worksheet.set_row(idx, None, transit_format)
+                    worksheet.set_column(idx, idx, 4, transit_format)
+
+            for i in range(len(temp_dataframe)):
+                worksheet.write(i, i, temp_dataframe.iloc[i, i], ignore_format)
 
     def get_invert_id(self, node_id: int | str):
         """
@@ -215,14 +239,7 @@ class Graph:
                 case "==":
                     res = [node for node in res if len(node.neighbors) == neighbors_limit[0]]
                 case "<":
-                    print(8945619841654658441654)
-                    temp = []
-                    for node in res:
-                        print(node, len(node.neighbors), node.neighbors, neighbors_limit[0], len(node.neighbors) < neighbors_limit[0])
-                        if len(node.neighbors) < neighbors_limit[0]:
-                            temp += [node]
-                    res = temp
-                    #res = [node for node in res if len(node.neighbors) < neighbors_limit[0]]
+                    res = [node for node in res if len(node.neighbors) < neighbors_limit[0]]
                 case "<=":
                     res = [node for node in res if len(node.neighbors) <= neighbors_limit[0]]
                 case ">":
@@ -271,10 +288,7 @@ class Graph:
 
 
 G = Graph(no_generation=False)
-#G.display_links((10, 20), (0, 1))
-for node_index in G.filter_nodes(output="index", tier=2, neighbors=(3, ">=")):
-    print(G.get_invert_id(node_index), G.nodes[node_index].neighbors)
+G.display_links((10, 20), (0, 1))
 
-print(G.filter_nodes(tier=2, neighbors_limit=(3, "<")))
-if input("Would you like to export? Y/N:") == "Y":
+if input("Would you like to export in an excel spreadsheet? Y/N:") == "Y":
     G.export()
