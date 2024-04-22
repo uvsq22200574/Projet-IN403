@@ -22,6 +22,10 @@
   - Interface ![](https://img.shields.io/badge/Status-Optional-purple)
 
 # Contacts
-  - Chargé de TD: N/A
+  - Chargé de TD: ylene.aboulfath@uvsq.fr
   - Chargé du Github: hugoassis.crh@protonmail.com
   - Collaborateurs : N/A
+
+# Rendu
+  - Objet: Projet IN403 Noms
+  - Date limite: Lundi 29 avril 2024
