@@ -29,3 +29,4 @@
 # Rendu
   - Objet: Projet IN403 Noms
   - Date limite: Lundi 29 avril 2024
+  - Passage: Groupe 3 -> 14h45
