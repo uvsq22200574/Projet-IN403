@@ -287,6 +287,22 @@ class Graph:
             print(f"The node's type provided is invalid ({type(node1)}, {type(node2)})")
             return (None)
 
+     def is_connected(self):
+        """
+        Check whether the graph is connected using a breadth-first path (BFS).
+        """
+        visited = set()
+        queue = [0]  
+
+        while queue:
+            node = queue.pop(0)
+            visited.add(node)
+            for neighbor, value in enumerate(self.matrix[node]):
+                if value != 0 and value != float('inf') and neighbor not in visited:
+                    queue.append(neighbor)
+
+        return len(visited) == len(self.nodes)
+
 
 G = Graph(no_generation=False)
 G.display_links((10, 20), (0, 1))
