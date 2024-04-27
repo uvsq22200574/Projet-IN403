@@ -1,8 +1,8 @@
 from random import choice, randint, random, sample
-from numpy import array, set_printoptions, triu, inf
+from numpy import array, zeros, fill_diagonal, inf
 from pandas import DataFrame, set_option, ExcelWriter
 from datetime import datetime
-from os import path, chdir
+from os import path, chdir, getcwd
 
 chdir(path.dirname(path.abspath(__file__)))
 # Can use NetworkX for visualization
@@ -70,14 +70,11 @@ class Graph:
     def __init__(self, name: str = None, size=100, rules=(10, 20, 70), **kwargs):
         self.name = name if name else f"Graph_{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}"
         self.distribution = rules
+        self.size = size
 
-        if kwargs.get("no_generation", False):
-            print("No generation...")
-            self.nodes = [Node() for _ in range(size)]
-            self.matrix = self._generate_links(size, rules, no_generation=True)
-        else:
-            self.nodes = self._generate_nodes(rules)
-            self.matrix = self._generate_links(size, rules)
+        self.nodes = self._generate_nodes(rules)
+        self.matrix = self._generate_matrix(size)
+        self._generate_links(rules)
 
     def __str__(self) -> str:
         return ('\n'.join(str(node.infos()) for node in self.nodes))
@@ -96,21 +93,24 @@ class Graph:
             temp += [Node(3, f"R{iteration}")]
         return (temp)
 
-    def _generate_links(self, size, rules, **kwargs):
-        """The matrix follow these rules: A link exists if it's >1, a line show a Node's neighbors, a column show what a Node is connected to, the value represents the speed of the link"""
-        temp = array([[0 if row != column else float("inf") for row in range(size)] for column in range(size)])
-        if kwargs.get("no_generation", False):
-            return (temp)
+    def _generate_matrix(self, size) -> array:
+        temp = zeros((size, size))
+        fill_diagonal(temp, inf)
+        return (temp)
 
+    def _generate_links(self, rules):
+        """The matrix follow these rules: A link exists if it's >1, a line show a Node's neighbors, a column show what a Node is connected to, the value represents the speed of the link"""
         # Tier I
         for node_A in range(0, rules[0]):
             for node_B in range(0, rules[0]):
-                if (self.get_link(temp, node_A, node_B) == 0) and (random_event(75)):
+                if (self.get_link(self.matrix, node_A, node_B) == 0) and (random_event(75)):
                     link_value = randint(5, 10)
-                    self.set_link(temp, node_A, node_B, link_value)
+                    self.set_link(self.matrix, node_A, node_B, link_value)
+                    self.nodes[node_A].neighbors += [node_B]
+                    self.nodes[node_B].neighbors += [node_A]
 
         # Tier II
-        for node_A in range(rules[0], rules[0] + rules[1]):    # WIP
+        for node_A in range(rules[0], rules[0] + rules[1]):
             # Part 2
             if len(self.nodes[node_A].neighbors) < 2:
                 candidates = self.filter_nodes(output="index", tier=2, neighbors_limit=(3, "<"), exclude=node_A)
@@ -120,13 +120,30 @@ class Graph:
                 else:
                     selection = candidates
                 for node_B in selection:
-                    if (self.get_link(temp, node_A, node_B) == 0):
+                    if (self.get_link(self.matrix, node_A, node_B) == 0):  # Do not overide an existing link or a diagonal
                         link_value = randint(10, 20)
-                        self.set_link(temp, node_A, node_B, link_value)
+                        self.set_link(self.matrix, node_A, node_B, link_value)
                         self.nodes[node_A].neighbors += [node_B]
                         self.nodes[node_B].neighbors += [node_A]
-
-        return (temp)
+        for node_A in range(rules[0], rules[0] + rules[1]):
+            # Part 1
+            selection = sample(list(range(0, rules[0])), randint(1, 2))
+            for node_B in selection:
+                if (self.get_link(self.matrix, node_A, node_B) == 0):  # Do not overide an existing link or a diagonal
+                    link_value = randint(10, 20)
+                    self.set_link(self.matrix, node_A, node_B, link_value)
+                    self.nodes[node_A].neighbors += [node_B]
+                    self.nodes[node_B].neighbors += [node_A]
+        # Tier III
+        for node_A in range(rules[0] + rules[1], sum(rules)):
+            # Part 1
+            selection = sample(list(range(rules[0], rules[0] + rules[1])), 2)
+            for node_B in selection:
+                if (self.get_link(self.matrix, node_A, node_B) == 0):  # Do not overide an existing link or a diagonal
+                    link_value = randint(20, 50)
+                    self.set_link(self.matrix, node_A, node_B, link_value)
+                    self.nodes[node_A].neighbors += [node_B]
+                    self.nodes[node_B].neighbors += [node_A]
 
     def display_links(self, shape=(10, 20), slice: tuple = (0, 999)):
         """
@@ -161,6 +178,8 @@ class Graph:
         temp_dataframe.index = [node.name for node in self.nodes]
         temp_dataframe.columns = [node.name for node in self.nodes]
 
+        print(f"Exporting to \033[96m{getcwd()}\033[0m as \033[96m{self.name}_spreadsheet.xlsx\033[0m")
+
         with ExcelWriter(f'spreadsheets/{self.name}_spreadsheet.xlsx', engine='xlsxwriter') as writer:
             temp_dataframe.to_excel(writer, sheet_name=self.name, startrow=0, startcol=0, index=True)
 
@@ -168,24 +187,25 @@ class Graph:
             workbook = writer.book
             worksheet = writer.sheets[self.name]
 
-            # Create a cell format with centered alignment
+            # Cell Formats
             centered_format = workbook.add_format({'align': 'center'})
             backbone_format = workbook.add_format({'align': 'center', 'bg_color': '#963634'})
             transit_format = workbook.add_format({'align': 'center', 'bg_color': '#007BA7'})
-            ignore_format = workbook.add_format({'align': 'center', 'bg_color': '#000000'})
+            ignore_format = workbook.add_format({'align': 'center', 'bg_color': '#222222'})
 
-            # Apply the centered format to all cells
-            for idx, col in enumerate(temp_dataframe.columns):
-                worksheet.set_column(idx, idx, 4, centered_format)
-                if idx == self.distribution[0]:
-                    worksheet.set_row(idx, None, backbone_format)
-                    worksheet.set_column(idx, idx, 4, backbone_format)
-                if idx == sum(self.distribution[:-1]):
-                    worksheet.set_row(idx, None, transit_format)
-                    worksheet.set_column(idx, idx, 4, transit_format)
+            for index in range(1, len(temp_dataframe.columns) + 1):
+                worksheet.set_column(index, index, 3, centered_format)
+                if index == self.distribution[0]:  # Backbone
+                    worksheet.set_row(index, None, backbone_format)
+                    worksheet.set_column(index, index, 3, backbone_format)
+                if index == sum(self.distribution[:-1]):  # Transit
+                    worksheet.set_row(index, None, transit_format)
+                    worksheet.set_column(index, index, 3, transit_format)
 
-            for i in range(len(temp_dataframe)):
-                worksheet.write(i, i, temp_dataframe.iloc[i, i], ignore_format)
+            # All bottom matrix, including diagonal
+            for column in range(1, len(temp_dataframe) + 1):
+                for row in range(column, len(temp_dataframe) + 1):
+                    worksheet.write(row, column, temp_dataframe.iloc[row - 1, column - 1], ignore_format)
 
     def get_invert_id(self, node_id: int | str):
         """
@@ -287,25 +307,32 @@ class Graph:
             print(f"The node's type provided is invalid ({type(node1)}, {type(node2)})")
             return (None)
 
-     def is_connected(self):
+    def is_connected(self):
         """
         Check whether the graph is connected using a breadth-first path (BFS).
         """
         visited = set()
-        queue = [0]  
+        queue = [0]
 
         while queue:
             node = queue.pop(0)
             visited.add(node)
-            for neighbor, value in enumerate(self.matrix[node]):
-                if value != 0 and value != float('inf') and neighbor not in visited:
+            for neighbor, value in enumerate(self.matrix[node]):    # Maybe use the get neighbors method, a row does not contain every neighbors
+                if value not in [0, float('inf')] and neighbor not in visited:
                     queue.append(neighbor)
 
-        return len(visited) == len(self.nodes)
+        print(f"The nodes that were not connected are {visited ^ {node_index for node_index in range(self.size)}}")
+        return (len(visited) == len(self.nodes))
 
 
 G = Graph(no_generation=False)
-G.display_links((10, 20), (0, 1))
+print(G.is_connected())
 
-if input("Would you like to export in an excel spreadsheet? Y/N:") == "Y":
-    G.export()
+export = input("Would you like to export in an excel spreadsheet? Y/N:")
+match export:
+    case "Y" | "Yes" | "1":
+        G.export()
+    case "N" | "No" | "0":
+        print("The user aborted the export")
+    case _:
+        print(f'The user input "{export}" is wrong.')
