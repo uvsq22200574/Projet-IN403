@@ -315,11 +315,13 @@ class Graph:
         queue = [0]
 
         while queue:
-            node = queue.pop(0)
-            visited.add(node)
-            for neighbor, value in enumerate(self.matrix[node]):    # Maybe use the get neighbors method, a row does not contain every neighbors
-                if value not in [0, float('inf')] and neighbor not in visited:
-                    queue.append(neighbor)
+            node = queue.pop(0)  
+            if node not in visited:
+                visited.add(node)  
+                neighbors = self.get_neighbors(self.matrix, node, output="index")  # Get the neighbors of the current node
+                for neighbor in neighbors:
+                    if neighbor not in visited:
+                        queue.append(neighbor)
 
         print(f"The nodes that were not connected are {visited ^ {node_index for node_index in range(self.size)}}")
         return (len(visited) == len(self.nodes))
