@@ -14,11 +14,11 @@
 
   - Texte ![](https://img.shields.io/badge/Status-todo-red)
   - Nœuds Backbone ![](https://img.shields.io/badge/Status-completed-green)
-  - Nœuds Transit ![](https://img.shields.io/badge/Status-half_completed-yellow)
-  - Nœuds Regulier ![](https://img.shields.io/badge/Status-todo-red)
-  - Connexité ![](https://img.shields.io/badge/Status-todo-red)
+  - Nœuds Transit ![](https://img.shields.io/badge/Status-completed-green)
+  - Nœuds Regulier ![](https://img.shields.io/badge/Status-completed-green)
+  - Connexité ![](https://img.shields.io/badge/Status-completed-green)
+  - Algorithme du plus court chemin ![](https://img.shields.io/badge/Status-todo-red)
   - Table de Routage ![](https://img.shields.io/badge/Status-todo-red)
-  - Chemin ![](https://img.shields.io/badge/Status-todo-red)
   - Interface ![](https://img.shields.io/badge/Status-Optional-purple)
 
 # Contacts

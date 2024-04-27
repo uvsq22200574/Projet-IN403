@@ -39,7 +39,7 @@ class Node:
         self.name = self.set_name(name, self.id)
         self.neighbors = []
         self.global_nodes[self.id] = self.name
-        self.routing_table = {}
+        self.routing_table = {}     # Dict with destination and path
 
     def __repr__(self) -> str:
         return (f'{self.infos()}')
@@ -64,7 +64,8 @@ class Graph:
     The matrix is upper half only, excluding the diagonal.
     \nRules are the distribution of nodes per tier
     \nOptional arguments (kwargs):
-    \n\tno_generation: bool -> Use to generate a blank Graph, defaults to False
+    \n - no_generation: bool = False -> Use to generate a blank Graph.
+    \n - connected: bool = True -> Generate a graph until it's connected or not.
     """
 
     def __init__(self, name: str = None, size=100, rules=(10, 20, 70), **kwargs):
@@ -73,8 +74,9 @@ class Graph:
         self.size = size
 
         self.nodes = self._generate_nodes(rules)
-        self.matrix = self._generate_matrix(size)
-        self._generate_links(rules)
+        self.matrix = self._generate_matrix(self.size)
+        self._generate_links(rules, connected=kwargs.get("connected", True))
+        self.not_connected = set()
 
     def __str__(self) -> str:
         return ('\n'.join(str(node.infos()) for node in self.nodes))
@@ -98,52 +100,65 @@ class Graph:
         fill_diagonal(temp, inf)
         return (temp)
 
-    def _generate_links(self, rules):
-        """The matrix follow these rules: A link exists if it's >1, a line show a Node's neighbors, a column show what a Node is connected to, the value represents the speed of the link"""
-        # Tier I
-        for node_A in range(0, rules[0]):
-            for node_B in range(0, rules[0]):
-                if (self.get_link(self.matrix, node_A, node_B) == 0) and (random_event(75)):
-                    link_value = randint(5, 10)
-                    self.set_link(self.matrix, node_A, node_B, link_value)
-                    self.nodes[node_A].neighbors += [node_B]
-                    self.nodes[node_B].neighbors += [node_A]
+    def _generate_links(self, rules, **kwargs):
+        """
+        The matrix follow these rules: A link exists if it's >1, a line show a Node's neighbors,
+        a column show what a Node is connected to, the value represents the speed of the link
+        \nOptionnal Arguments:
+        \n - connected: bool -> Generate a graph until it's connected or not.
+        """
 
-        # Tier II
-        for node_A in range(rules[0], rules[0] + rules[1]):
-            # Part 2
-            if len(self.nodes[node_A].neighbors) < 2:
-                candidates = self.filter_nodes(output="index", tier=2, neighbors_limit=(3, "<"), exclude=node_A)
+        first_iter = True
+        cpt = 0
+        while (self.is_connected() is not kwargs.get("connected", True)) or (first_iter is True):
+            cpt += 1
+            self.matrix = self._generate_matrix(self.size)  # Reset the matrix if failure
+            # Tier I
+            for node_A in range(0, rules[0]):
+                for node_B in range(0, rules[0]):
+                    if (self.get_link(self.matrix, node_A, node_B) == 0) and (random_event(75)):
+                        link_value = randint(5, 10)
+                        self.set_link(self.matrix, node_A, node_B, link_value)
+                        self.nodes[node_A].neighbors += [node_B]
+                        self.nodes[node_B].neighbors += [node_A]
 
-                if len(candidates) > 3:  # Sample doesn't work if the population is less than the picked amount
-                    selection = sample(list(candidates), randint(2, 3))
-                else:
-                    selection = candidates
+            # Tier II
+            for node_A in range(rules[0], rules[0] + rules[1]):
+                # Part 2
+                if len(self.nodes[node_A].neighbors) < 2:
+                    candidates = self.filter_nodes(output="index", tier=2, neighbors_limit=(3, "<"), exclude=node_A)
+
+                    if len(candidates) > 3:  # Sample doesn't work if the population is less than the picked amount
+                        selection = sample(list(candidates), randint(2, 3))
+                    else:
+                        selection = candidates
+                    for node_B in selection:
+                        if (self.get_link(self.matrix, node_A, node_B) == 0):  # Do not overide an existing link or a diagonal
+                            link_value = randint(10, 20)
+                            self.set_link(self.matrix, node_A, node_B, link_value)
+                            self.nodes[node_A].neighbors += [node_B]
+                            self.nodes[node_B].neighbors += [node_A]
+            for node_A in range(rules[0], rules[0] + rules[1]):
+                # Part 1
+                selection = sample(list(range(0, rules[0])), randint(1, 2))
                 for node_B in selection:
                     if (self.get_link(self.matrix, node_A, node_B) == 0):  # Do not overide an existing link or a diagonal
                         link_value = randint(10, 20)
                         self.set_link(self.matrix, node_A, node_B, link_value)
                         self.nodes[node_A].neighbors += [node_B]
                         self.nodes[node_B].neighbors += [node_A]
-        for node_A in range(rules[0], rules[0] + rules[1]):
-            # Part 1
-            selection = sample(list(range(0, rules[0])), randint(1, 2))
-            for node_B in selection:
-                if (self.get_link(self.matrix, node_A, node_B) == 0):  # Do not overide an existing link or a diagonal
-                    link_value = randint(10, 20)
-                    self.set_link(self.matrix, node_A, node_B, link_value)
-                    self.nodes[node_A].neighbors += [node_B]
-                    self.nodes[node_B].neighbors += [node_A]
-        # Tier III
-        for node_A in range(rules[0] + rules[1], sum(rules)):
-            # Part 1
-            selection = sample(list(range(rules[0], rules[0] + rules[1])), 2)
-            for node_B in selection:
-                if (self.get_link(self.matrix, node_A, node_B) == 0):  # Do not overide an existing link or a diagonal
-                    link_value = randint(20, 50)
-                    self.set_link(self.matrix, node_A, node_B, link_value)
-                    self.nodes[node_A].neighbors += [node_B]
-                    self.nodes[node_B].neighbors += [node_A]
+            # Tier III
+            for node_A in range(rules[0] + rules[1], sum(rules)):
+                # Part 1
+                selection = sample(list(range(rules[0], rules[0] + rules[1])), 2)
+                for node_B in selection:
+                    if (self.get_link(self.matrix, node_A, node_B) == 0):  # Do not overide an existing link or a diagonal
+                        link_value = randint(20, 50)
+                        self.set_link(self.matrix, node_A, node_B, link_value)
+                        self.nodes[node_A].neighbors += [node_B]
+                        self.nodes[node_B].neighbors += [node_A]
+            first_iter = False
+        print(f"Generated graph in {cpt} attempts")
 
     def display_links(self, shape=(10, 20), slice: tuple = (0, 999)):
         """
@@ -315,20 +330,23 @@ class Graph:
         queue = [0]
 
         while queue:
-            node = queue.pop(0)  
+            node = queue.pop(0)
             if node not in visited:
-                visited.add(node)  
+                visited.add(node)
                 neighbors = self.get_neighbors(self.matrix, node, output="index")  # Get the neighbors of the current node
                 for neighbor in neighbors:
                     if neighbor not in visited:
                         queue.append(neighbor)
 
-        print(f"The nodes that were not connected are {visited ^ {node_index for node_index in range(self.size)}}")
+        self.not_connected = visited ^ {node_index for node_index in range(self.size)}
         return (len(visited) == len(self.nodes))
 
 
-G = Graph(no_generation=False)
+G = Graph(connected=True)   # Can force a graph to be not connected (Very difficult)
 print(G.is_connected())
+print(G.not_connected)
+for node in G.not_connected:
+    print(G.get_neighbors(G.matrix, node))
 
 export = input("Would you like to export in an excel spreadsheet? Y/N:")
 match export:
