@@ -24,7 +24,7 @@
 # Contacts
   - Chargé de TD: ylene.aboulfath@uvsq.fr
   - Chargé du Github: hugoassis.crh@protonmail.com
-  - Collaborateurs : N/A
+  - Collaborateurs : ebeguy.yapo@ens.uvsq.fr
 
 # Rendu
   - Objet: Projet IN403 Noms
