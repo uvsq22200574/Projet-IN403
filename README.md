@@ -13,18 +13,18 @@
   - Il faut dans cette partie permettre a l'utilisateur de saisir 2 nœud : un nœud émetteur de message et un nœud destinataire et a l'aide des tables de routage (il ne faut pas refaire ici le calcul de plus court chemin mais juste utiliser les tables de routage établies dans la partie précédente) reconstituer le chemin que va suivre ce message. Ce chemin devra être indiqué (affiché) à l'utilisateur.
 
   - Texte ![](https://img.shields.io/badge/Status-todo-red)
-  - Nœuds Backbone ![](https://img.shields.io/badge/Status-completed-green)
-  - Nœuds Transit ![](https://img.shields.io/badge/Status-completed-green)
-  - Nœuds Regulier ![](https://img.shields.io/badge/Status-completed-green)
-  - Connexité ![](https://img.shields.io/badge/Status-completed-green)
-  - Algorithme du plus court chemin ![](https://img.shields.io/badge/Status-todo-red)
-  - Table de Routage ![](https://img.shields.io/badge/Status-todo-red)
+  - Nœuds Backbone ![](https://img.shields.io/badge/Status-Completed-green)
+  - Nœuds Transit ![](https://img.shields.io/badge/Status-Completed-green)
+  - Nœuds Regulier ![](https://img.shields.io/badge/Status-Completed-green)
+  - Connexité ![](https://img.shields.io/badge/Status-Completed-green)
+  - Algorithme du plus court chemin ![](https://img.shields.io/badge/Status-Completed-green)
+  - Table de Routage ![](https://img.shields.io/badge/Status-Completed-green)
   - Interface ![](https://img.shields.io/badge/Status-Optional-purple)
 
 # Contacts
   - Chargé de TD: ylene.aboulfath@uvsq.fr
   - Chargé du Github: hugoassis.crh@protonmail.com
-  - Collaborateurs : N/A
+  - Collaborateurs : ebeguy.yapo@ens.uvsq.fr
 
 # Rendu
   - Objet: Projet IN403 Noms
