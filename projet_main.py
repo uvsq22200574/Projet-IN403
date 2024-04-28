@@ -3,6 +3,7 @@ from numpy import array, zeros, fill_diagonal, inf
 from pandas import DataFrame, set_option, ExcelWriter
 from datetime import datetime
 from os import path, chdir, getcwd
+from heapq import heappop, heappush
 
 chdir(path.dirname(path.abspath(__file__)))
 # Can use NetworkX for visualization
@@ -341,12 +342,60 @@ class Graph:
         self.not_connected = visited ^ {node_index for node_index in range(self.size)}
         return (len(visited) == len(self.nodes))
 
+def calculate_routing_tables_with_dijkstra(graph):
+    """
+    Calculate the routing tables for each node using Dijkstra's algorithm.
+    Function that can be adjusted or modified.
+    """
+
+    for node_index, node in enumerate(graph.nodes):
+        # Initialize distances and predecessors
+        distances = {i: float('inf') for i in range(len(graph.nodes))}
+        predecessors = {i: None for i in range(len(graph.nodes))}
+        distances[node_index] = 0  
+        priority_queue = [(0, node_index)]  
+
+        while priority_queue:
+            current_distance, current_node = heapq.heappop(priority_queue)
+
+            # Use the get_neighbors method to get the neighbors of the current node
+            neighbors = graph.get_neighbors(graph.matrix, current_node, output="index")
+
+            for neighbor in neighbors:
+                link_value = graph.get_link(graph.matrix, current_node, neighbor)
+                if link_value != float('inf'):
+                    new_distance = current_distance + link_value
+                    if new_distance < distances[neighbor]:
+                        distances[neighbor] = new_distance
+                        predecessors[neighbor] = current_node
+                        heapq.heappush(priority_queue, (new_distance, neighbor))
+
+        routing_table = {}
+        for dest_index in distances:
+            if dest_index != node_index:
+                # Reconstruct the path
+                path = []
+                current = dest_index
+                while current is not None:
+                    path.insert(0, current)
+                    current = predecessors[current]
+
+                # Next jump is the next node in the path
+                routing_table[graph.nodes[dest_index].name] = graph.nodes[path[1]].name if len(path) > 1 else None
+
+        # Link the routing table to the node
+        node.routing_table = routing_table
+
+    print("Table de routage pour le nœud de départ :", graph.nodes[0].routing_table)
 
 G = Graph(connected=True)   # Can force a graph to be not connected (Very difficult)
 print(G.is_connected())
 print(G.not_connected)
 for node in G.not_connected:
     print(G.get_neighbors(G.matrix, node))
+
+# Test for Dijkstra
+calculate_routing_tables_with_dijkstra(G)
 
 export = input("Would you like to export in an excel spreadsheet? Y/N:")
 match export:
