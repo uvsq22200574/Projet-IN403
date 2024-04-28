@@ -12,7 +12,7 @@
   - La table de routage d'un nœud doit indiquer pour chaque destination possible (les 99 autres nœud) à quel voisin il convient de router un message (un paquet) compte tenu de la destination finale. C'est donc le prochain nœud sur un plus court chemin vers cette destination car le message doit suivre le cheminement le plus court en temps de communication (les temps de routage en chaque noeud intermediaire sont considérés comme negligeables). Il convient donc dans cette partie de developper l’algorithme qui calcule ces 100 tables de routage.
   - Il faut dans cette partie permettre a l'utilisateur de saisir 2 nœud : un nœud émetteur de message et un nœud destinataire et a l'aide des tables de routage (il ne faut pas refaire ici le calcul de plus court chemin mais juste utiliser les tables de routage établies dans la partie précédente) reconstituer le chemin que va suivre ce message. Ce chemin devra être indiqué (affiché) à l'utilisateur.
 
-  - Texte ![](https://img.shields.io/badge/Status-todo-red)
+  - Rapport ![](https://img.shields.io/badge/Status-Complted-green)
   - Nœuds Backbone ![](https://img.shields.io/badge/Status-Completed-green)
   - Nœuds Transit ![](https://img.shields.io/badge/Status-Completed-green)
   - Nœuds Regulier ![](https://img.shields.io/badge/Status-Completed-green)
